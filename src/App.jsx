@@ -20,15 +20,15 @@ function App() {
   // Effect to load the ONNX model on component mount
   useEffect(() => {
     const loadModel = async () => {
-      setLoading(true);
+      setLoading(true);  
+      console.log("Loading model started..."); // Added log
       try {
-        // Path assumes model.onnx is in the public folder
-        // Use transformers.js pipeline to load the model and tokenizer
-        sessionRef.current = await pipeline(
+        console.log("Pipeline function called with paths:", { model: 'model', tokenizer: 'tokenizer' }); // Added log
+        sessionRef.current = await pipeline( 
           'text2text-generation',
-          '/model',
+          'model',
           {
-            tokenizer: '/tokenizer',
+            tokenizer: 'tokenizer/tokenizer_config.json',
             onProgress: (progress) => { console.log(`Loading ${progress.file}: ${progress.progress}%`); },
           }
         );
@@ -38,8 +38,9 @@ function App() {
         setExplanation(
           `Failed to load model/tokenizer: ${error.message}. Check console for details.`
         );
-      } finally {
+      } finally { 
         setLoading(false);
+        console.log("Loading model completed."); // Added log
       }
     }
 
