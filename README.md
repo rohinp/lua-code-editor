@@ -1,42 +1,96 @@
-# Lua Intelligent IDE (Browser-Based PoC)
+# Lua Code Editor with AI Explanation
 
-## Project Idea
+## Project Overview
 
-This project aims to explore the feasibility of creating a lightweight, intelligent IDE for the Lua programming language that runs entirely within the web browser. The core idea is to leverage modern web technologies and small, efficient machine learning models (using ONNX Runtime Web and Transformers.js) to provide features like code explanation directly in the client-side environment.
+This project is a proof-of-concept for a browser-based Lua code editor with AI-powered code explanation capabilities. The application runs entirely within the web browser, making it suitable for secure environments including air-gapped systems. It leverages modern web technologies and machine learning to provide intelligent features without requiring external API calls.
 
-The initial focus is on providing simple, one-to-two-line explanations for Lua code snippets (5-50 lines).
+## Current Features
 
-## Current Functionality (As of this commit)
+* **Responsive UI**: Clean, modern interface built with React and Vite
+* **Lua Code Editor**: Full-featured code editor with syntax highlighting via CodeMirror
+* **AI-Powered Explanations**: Uses the Xenova/codegen-350M-mono model to generate explanations of Lua code
+* **Performance Optimizations**:
+  * Web Worker implementation to prevent UI freezing during inference
+  * Model caching in IndexedDB for persistence between sessions
+  * Explanation caching in localStorage to avoid redundant processing
+  * 8-bit quantization for faster inference with minimal quality loss
+* **Component Architecture**: Modular design with separated concerns for better maintainability
 
-*   **React Frontend:** The application is built using React and Vite.
-*   **Lua Code Editor:** Integrated `CodeMirror` via `@uiw/react-codemirror` to provide a basic code editor with Lua syntax highlighting.
-*   **UI Elements:** Includes an input area for Lua code and an "Explain" button.
-*   **ONNX Runtime Setup:**
-    *   `onnxruntime-web` dependency is installed.
-    *   Helper WASM files for ONNX Runtime are copied to the `public/dist` directory.
-    *   Basic structure to load an ONNX model (`InferenceSession`) is implemented in `App.jsx`.
-*   **Model/Tokenizer Files (Placeholder):**
-    *   Downloaded ONNX model files (non-quantized T5-small: `encoder_model.onnx`, `decoder_model.onnx`, `decoder_with_past_model.onnx`) and placed them in `public/model/`.
-    *   Downloaded associated tokenizer files (`tokenizer.json`, `spiece.model`, etc.) and placed them in `public/tokenizer/`.
-*   **Explain Button (Dummy):** Clicking the "Explain" button currently displays a placeholder "Processing..." message followed by a "not implemented yet" notice.
+## Technical Implementation
 
-## Pending Items / Next Steps
+### Model Integration
 
-1.  **Integrate `transformers.js`:**
-    *   Install `@xenova/transformers`. (Done)
-    *   Use the `pipeline` function or `AutoTokenizer`/`AutoModelForSeq2SeqLM` classes from `transformers.js` to load the tokenizer files from `public/tokenizer/`.
-    *   Configure `transformers.js` to use the ONNX models located in `public/model/` via ONNX Runtime.
-2.  **Implement Inference Logic:**
-    *   In the `handleExplainClick` function:
-        *   Prepare the input code (potentially adding a task-specific prefix like "explain Lua: ").
-        *   Use the loaded `transformers.js` pipeline/model to generate an explanation based on the Lua code in the editor.
-        *   Handle the asynchronous nature of model inference.
-        *   Decode the model's output tensor back into human-readable text.
-3.  **Display Explanation:** Update the UI to show the actual explanation received from the model instead of the placeholder text.
-4.  **Error Handling & UI Improvements:** Add more robust error handling for model loading and inference. Improve UI feedback (e.g., more specific loading states).
-5.  **(Future) Explore Quantized Models:** If performance/size is an issue, revisit finding and using quantized versions of the model (e.g., `t5-small-quantized` or `phi-2-quantized`).
-6.  **(Future) Fine-tuning:** Explore offline fine-tuning of a small model specifically on Lua code explanation tasks for better accuracy.
+* **Model**: Xenova/codegen-350M-mono (350M parameter code-understanding model)
+* **Framework**: transformers.js for in-browser ML inference
+* **Runtime**: ONNX Runtime Web for efficient model execution
+* **Optimizations**: 8-bit quantization, caching, and web workers
+
+### Application Structure
+
+* **Components**:
+  * `LuaEditor`: CodeMirror-based editor for Lua code
+  * `ExplanationDisplay`: Renders the generated explanation
+  * `ActionButtons`: Controls for triggering explanation and clearing cache
+  * `LoadingMessage`: Feedback during model loading and inference
+  * `ModelCacheManager`: Interface for managing model cache
+* **Hooks**:
+  * `useModelInference`: Custom hook encapsulating model loading and inference logic
+* **Utils**:
+  * `transformersConfig.js`: Configuration for the transformers.js library
+  * `modelCache.js`: Utilities for model caching
+
+## Current Limitations
+
+The base model (Xenova/codegen-350M-mono) has limitations when generating Lua code explanations:
+
+* Often repeats the code instead of explaining it
+* May go off-topic or generate irrelevant content
+* Provides brief or inadequate explanations for complex code
+* Lacks deep understanding of Lua-specific concepts
+
+These limitations highlight the need for domain-specific fine-tuning.
+
+## Roadmap for Fine-Tuning
+
+### 1. Dataset Creation
+* Collect 50-100 examples of domain-specific Lua code snippets
+* Create high-quality explanations for each snippet
+* Format as prompt-completion pairs
+
+### 2. Fine-Tuning Process
+* Use Hugging Face's fine-tuning capabilities on the codegen-350M-mono model
+* Train with low learning rate (1e-5 to 3e-5) to avoid catastrophic forgetting
+* Use 3-5 epochs for a small dataset
+
+### 3. Model Quantization
+* Convert to ONNX format for browser deployment
+* Apply 8-bit quantization to reduce size while maintaining quality
+
+### 4. Integration
+* Update the model path in transformersConfig.js
+* Keep the existing browser-based infrastructure
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## Dependencies
+
+* React
+* Vite
+* @xenova/transformers
+* @uiw/react-codemirror
+* onnxruntime-web
 
 ---
 
-*This README was generated based on the project state during development.*
+*This project demonstrates the feasibility of running AI-powered code analysis tools entirely in-browser for secure environments.*
