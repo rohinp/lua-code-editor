@@ -3,6 +3,7 @@ import LuaEditor from './components/LuaEditor';
 import ExplanationDisplay from './components/ExplanationDisplay';
 import ActionButtons from './components/ActionButtons';
 import LoadingMessage from './components/LoadingMessage';
+import LoadingIndicator from './components/LoadingIndicator';
 import ModelCacheManager from './components/ModelCacheManager';
 import useModelInference from './hooks/useModelInference';
 
@@ -14,6 +15,7 @@ function App() {
     loading,
     loadingMessage,
     error,
+    progress,
     isModelReady,
     generateExplanation,
     clearExplanationCache
@@ -46,9 +48,16 @@ function App() {
       <ModelCacheManager />
 
       {/* Loading message */}
-      {loadingMessage && (
+      {loadingMessage && !loading && (
         <LoadingMessage message={loadingMessage} />
       )}
+      
+      {/* Loading indicator with progress bar */}
+      <LoadingIndicator 
+        isLoading={loading} 
+        message={loadingMessage || 'Processing...'} 
+        progress={progress} 
+      />
 
       <LuaEditor value={luaCode} onChange={handleCodeChange} />
 

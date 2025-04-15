@@ -10,8 +10,22 @@ const useModelInference = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
   const pipelineRef = useRef(null);
   const workerRef = useRef(null);
+  
+  // Set up global callback for progress updates
+  useEffect(() => {
+    window.updateProgressCallback = (data) => {
+      if (data && typeof data.progress === 'number') {
+        setProgress(Math.min(0.99, data.progress));
+      }
+    };
+    
+    return () => {
+      window.updateProgressCallback = null;
+    };
+  }, []);
 
   // Load model on component mount
   useEffect(() => {
@@ -35,7 +49,7 @@ const useModelInference = () => {
   const loadModel = async () => {
     try {
       setLoading(true);
-      setLoadingMessage('Loading codegen-350M-mono model... This may take a moment but provides better code explanations');
+      setLoadingMessage('Loading fine-tuned Lua code explanation model... This may take a moment but provides specialized Lua explanations');
       setError(null);
 
       // Use the model configuration from our config file
@@ -44,6 +58,12 @@ const useModelInference = () => {
 
       // Create the pipeline with the model
       console.log(`Creating ${task} pipeline with model: ${modelPath}`);
+      console.log('Model options:', JSON.stringify(modelOptions, null, 2));
+      
+      // Log custom file paths if present
+      if (modelOptions.model_file_map) {
+        console.log('Using custom model file paths:', modelOptions.model_file_map);
+      }
 
       // If we have an existing worker, try to reuse it
       if (workerRef.current) {
@@ -113,6 +133,7 @@ const useModelInference = () => {
 
     setLoading(true);
     setLoadingMessage('Generating explanation...');
+    setProgress(0.05); // Start with a small progress indication
 
     // Cache key for this code snippet
     const cacheKey = `explanation_${hashCode(luaCode)}`;
@@ -127,30 +148,47 @@ const useModelInference = () => {
     }
 
     try {
-      // Format the prompt for the code understanding model with a more specific instruction
-      // Guiding the model to focus on Lua specifically and provide a concise explanation
+      // Format the prompt for our fine-tuned Lua code explanation model
+      // Since the model is now fine-tuned specifically for Lua, we can use a simpler prompt
       const prompt = `# Lua Code Explanation
-
-Below is a Lua code snippet. Provide a brief, clear explanation of what this Lua code does:
 
 \`\`\`lua
 ${luaCode}
 \`\`\`
 
-Explanation of the Lua code (in 2-3 sentences):`;
+Explain this Lua code:`;
 
       console.log('Sending prompt to model');
 
+      // Set up a fake progress simulation since we don't get real-time progress from the model
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          // Slowly increase progress up to 90% (the last 10% will be set after completion)
+          const newProgress = prev + (0.9 - prev) * 0.1;
+          return Math.min(0.9, newProgress);
+        });
+      }, 300);
+      
       // Generate the explanation using the text-generation pipeline with adjusted parameters
-      // Increasing max_new_tokens and reducing temperature for more focused responses
-      const result = await pipelineRef.current(prompt, {
+      // Use the formatPrompt function from MODEL_CONFIG if available
+      const formattedPrompt = MODEL_CONFIG.formatPrompt ? MODEL_CONFIG.formatPrompt(luaCode) : prompt;
+      
+      // Use the default generation config from MODEL_CONFIG if available
+      const generationConfig = MODEL_CONFIG.options?.default_generation_config || {
         max_new_tokens: 200,     // Increased token count for more complete explanations
         temperature: 0.7,        // Lower temperature for more focused responses
         top_p: 0.95,             // Slightly higher top_p for good token selection
         do_sample: true,         // Use sampling for varied responses
         num_beams: 1,            // Simple search for performance
         early_stopping: true     // Stop when complete
-      });
+      };
+      
+      const result = await pipelineRef.current(formattedPrompt, generationConfig);
+      
+      // Clear the progress interval
+      clearInterval(progressInterval);
+      // Set progress to 95% to indicate we're almost done
+      setProgress(0.95);
       
       console.log('Model inference parameters:', {
         max_new_tokens: 200,
@@ -193,7 +231,8 @@ Explanation of the Lua code (in 2-3 sentences):`;
       console.log('Extracted explanation text:', explanationText);
       console.log('Explanation length:', explanationText.length);
       
-      // Check for Python license text which indicates the model went off-track
+      // Since we're using a fine-tuned model for Lua, we should have fewer off-topic responses
+      // But still check for common issues that might indicate the model went off-track
       const containsPythonLicense = explanationText.includes('#!/usr/bin/env python') || 
                                    explanationText.includes('Carnegie Mellon') ||
                                    explanationText.includes('Permission is hereby granted');
@@ -253,6 +292,8 @@ For better results, a fine-tuned model or a larger model with more Lua knowledge
       // Clear loading state
       setLoading(false);
       setLoadingMessage('');
+      // Reset progress
+      setTimeout(() => setProgress(0), 500); // Small delay to show 100% briefly
     }
   };
 
@@ -291,6 +332,7 @@ For better results, a fine-tuned model or a larger model with more Lua knowledge
     loading,
     loadingMessage,
     error,
+    progress,
     isModelReady: !!pipelineRef.current,
     generateExplanation,
     clearExplanationCache
