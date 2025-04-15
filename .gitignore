@@ -32,3 +32,7 @@ temp/
 .idx
 
 public/models
+fine-tune/lua_gpt2_onnx
+fine-tune/tokenized_lua_dataset
+fine-tune/lua_gpt2_final
+fine-tune/lua_gpt2_finetuned

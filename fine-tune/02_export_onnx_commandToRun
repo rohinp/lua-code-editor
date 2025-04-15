@@ -1,0 +1,6 @@
+optimum-cli export onnx \
+  --model ./lua_gpt2_final \
+  ./lua_gpt2_onnx \
+  --task text-generation \
+  --opset 14 \
+  --library transformers
